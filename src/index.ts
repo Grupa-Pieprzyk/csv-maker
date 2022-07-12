@@ -14,32 +14,24 @@ export type CosmeticColumn<T extends Row> = {
   text: string;
   child: Array<Column<T>>;
 }
-type RenderFnWrapper<T extends Row> = {
-  renderFn: RenderFn<T>
+export type RenderFnWrapper<T extends Row> = {
+  fn: RenderFn<T>
 }
-type RendererColumn<T extends Row> = {
+export type RendererColumn<T extends Row> = {
   text: string;
   child: RenderFnWrapper<T>;
 }
 
-type Column<T extends Row> = RendererColumn<T> | CosmeticColumn<T>;
+export type Column<T extends Row> = RendererColumn<T> | CosmeticColumn<T>;
 
 export type Config<T extends Row> = {
   columns: Array<Column<T>>;
 };
 
-type FlattenedRow = Array<JSONValue>;
+export type FlattenedRow = Array<JSONValue>;
 
-// function isCosmeticColumn<T extends Row>(column: Column<T>): column is CosmeticColumn<T> {
-//   const isCosmetic = (column as CosmeticColumn<T>).child.length == null;
-//   return isCosmetic;
-// }
-
-function isRenderColumn<T extends Row>(column: Column<T>): column is RendererColumn<T> {
-  return (column as RendererColumn<T>).child.renderFn != null;
-  // const isItReally = !isCosmeticColumn(column);
-  // console.debug({ column, isItReally });
-  // return isItReally;
+export function isRenderColumn<T extends Row>(column: Column<T>): column is RendererColumn<T> {
+  return (column as RendererColumn<T>).child.fn != null;
 }
 
 export function getPaths<T extends Row>(column: Column<T>): Array<string[]> {
@@ -60,20 +52,40 @@ export function flattenRenderer<T extends Row>(column: Column<T>): Array<Rendere
   return column.child.flatMap((child) => flattenRenderer(child));
 }
 
+function rotateArray90deg<T>(matrix: Array<Array<T>>): Array<Array<T>> {
+  return matrix[0].map((_val, index) => matrix.map(row => row[index]))
+}
 
-function getHeaders<T extends Row>(config: Config<T>): Array<FlattenedRow> {
+export function rotate<T>(matrix: Array<Array<T>>, times: number): Array<Array<T>> {
+  let m = matrix;
+  for (let _ of range(times)) {
+    m = rotateArray90deg(m);
+  }
+  return m;
+}
+
+export function getHeaders<T extends Row>(config: Config<T>): Array<FlattenedRow> {
   const paths = config.columns.flatMap(getPaths);
   const longest = Math.max(...[...paths.map((v) => v.length)]);
   return paths.map((path) => path.reverse()).map((path) => [...path, ...range(longest - path.length).map(() => null)]).map((path) => path.reverse())
 }
 
+export function getRow<T extends Row>(row: T, config: Config<T>): FlattenedRow {
+  return config.columns.flatMap(flattenRenderer).flatMap(({ child }) => child.fn(row));
+}
+
+export function getValues<T extends Row>(data: T[], config: Config<T>): Array<FlattenedRow> {
+  return data.map((row) => getRow(row, config));
+}
+
 export function toCSV<T extends Row>(data: T[], config: Config<T>): Array<FlattenedRow> {
-  const headers = getHeaders(config);
-  const values = data.map((v) => config.columns.flatMap(flattenRenderer).flatMap(({ child }) => child.renderFn(v)));
-  return [
-    ...headers,
-    ...values,
-  ]
+  const rendered =
+    [
+      ...rotate(getHeaders(config), 1),
+      ...getValues(data, config),
+    ];
+  console.debug(dummyRender(rendered))
+  return rendered
 }
 
 export function dummyRender(csv: Array<FlattenedRow>): string {
