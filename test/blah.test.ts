@@ -1,4 +1,4 @@
-import { toCSV, flattenRenderer } from '../src';
+import { toCSV, flattenRenderer, dummyRender } from '../src';
 
 type Elderliness = 'puppy' | 'adult' | 'elder' | 'dead';
 type Happyness = 'happy' | 'ok' | 'sad';
@@ -30,7 +30,7 @@ describe('csv rendering', () => {
   it('works for simple stuff', () => {
     expect(toCSV(data, {
       columns: [
-        { text: 'name', child: (dog) => dog.name }
+        { text: 'name', child: {renderFn: (dog) => dog.name }}
       ]
     })).toStrictEqual([
       ['name'],
@@ -42,8 +42,8 @@ describe('csv rendering', () => {
     const year = '2021';
     const flattened = flattenRenderer<Dog>({
       text: year, child: [
-        { text: 'happiness', child: (dog: Dog) => dog.years.happyness[year] ?? null },
-        { text: 'elderliness', child: (dog: Dog) => dog.years.elderliness[year] ?? null },
+        { text: 'happiness', child: {renderFn: (dog: Dog) => dog.years.happyness[year] ?? null }},
+        { text: 'elderliness', child: {renderFn: (dog: Dog) => dog.years.elderliness[year] ?? null }},
       ]
     });
     expect(flattened[0]).not.toBeNull();
@@ -52,21 +52,22 @@ describe('csv rendering', () => {
   })
 
   it('works for more complex stuff', () => {
-    expect(toCSV(data, {
+    const rendered = toCSV(data, {
       columns: [
-        { text: 'name', child: (dog) => dog.name },
+        { text: 'name', child: {renderFn: (dog) => dog.name }},
         ...uniq(data.flatMap((dog) => Object.keys(dog.years))).map((year) => ({
           text: year, child: [
-            { text: 'happiness', child: (dog: Dog) => dog.years.happyness[year] ?? null },
-            { text: 'elderliness', child: (dog: Dog) => dog.years.elderliness[year] ?? null },
+            { text: 'happiness', child: {renderFn: (dog: Dog) => dog.years.happyness[year] ?? null }},
+            { text: 'elderliness', child: {renderFn: (dog: Dog) => dog.years.elderliness[year] ?? null }},
           ]
         }))
       ]
-    })).toStrictEqual([
+    });
+    console.log(dummyRender(rendered));
+    expect(rendered).toStrictEqual([
       [null, '2021', null],
       ['name', 'happiness', 'elderliness'],
       ['Doggo', 'happy', 'puppy']
-
     ])
   })
 });

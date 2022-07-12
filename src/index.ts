@@ -14,9 +14,12 @@ export type CosmeticColumn<T extends Row> = {
   text: string;
   child: Array<Column<T>>;
 }
+type RenderFnWrapper<T extends Row> = {
+  renderFn: RenderFn<T>
+}
 type RendererColumn<T extends Row> = {
   text: string;
-  child: RenderFn<T>;
+  child: RenderFnWrapper<T>;
 }
 
 type Column<T extends Row> = RendererColumn<T> | CosmeticColumn<T>;
@@ -27,15 +30,16 @@ export type Config<T extends Row> = {
 
 type FlattenedRow = Array<JSONValue>;
 
-function isCosmeticColumn<T extends Row>(column: Column<T>): column is CosmeticColumn<T> {
-  const isCosmetic = (column as CosmeticColumn<T>).child.length == null;
-  return isCosmetic;
-}
+// function isCosmeticColumn<T extends Row>(column: Column<T>): column is CosmeticColumn<T> {
+//   const isCosmetic = (column as CosmeticColumn<T>).child.length == null;
+//   return isCosmetic;
+// }
 
 function isRenderColumn<T extends Row>(column: Column<T>): column is RendererColumn<T> {
-  const isItReally = !isCosmeticColumn(column);
-  console.debug({ column, isItReally });
-  return isItReally;
+  return (column as RendererColumn<T>).child.renderFn != null;
+  // const isItReally = !isCosmeticColumn(column);
+  // console.debug({ column, isItReally });
+  // return isItReally;
 }
 
 export function getPaths<T extends Row>(column: Column<T>): Array<string[]> {
@@ -65,10 +69,14 @@ function getHeaders<T extends Row>(config: Config<T>): Array<FlattenedRow> {
 
 export function toCSV<T extends Row>(data: T[], config: Config<T>): Array<FlattenedRow> {
   const headers = getHeaders(config);
-  const values = data.map((v) => config.columns.flatMap(flattenRenderer).flatMap(({ child }) => child(v)));
+  const values = data.map((v) => config.columns.flatMap(flattenRenderer).flatMap(({ child }) => child.renderFn(v)));
   return [
     ...headers,
     ...values,
   ]
+}
+
+export function dummyRender(csv: Array<FlattenedRow>): string {
+  return csv.map((row) => row.join(",")).join("\n")
 }
 
