@@ -1,4 +1,4 @@
-import { toCSV } from '../src';
+import { toCSV, flattenRenderer } from '../src';
 
 type Elderliness = 'puppy' | 'adult' | 'elder' | 'dead';
 type Happyness = 'happy' | 'ok' | 'sad';
@@ -37,6 +37,19 @@ describe('csv rendering', () => {
       ['Doggo']
     ])
   });
+
+  it('typescript typechecking works', () => {
+    const year = '2021';
+    const flattened = flattenRenderer<Dog>({
+      text: year, child: [
+        { text: 'happiness', child: (dog: Dog) => dog.years.happyness[year] ?? null },
+        { text: 'elderliness', child: (dog: Dog) => dog.years.elderliness[year] ?? null },
+      ]
+    });
+    expect(flattened[0]).not.toBeNull();
+    expect(flattened[0].text).toEqual('happiness');
+    expect(flattened[0].child).not.toHaveProperty('length'); // not to be an array
+  })
 
   it('works for more complex stuff', () => {
     expect(toCSV(data, {
